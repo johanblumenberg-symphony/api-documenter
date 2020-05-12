@@ -59,6 +59,27 @@ function _tag(type: string, className: string | undefined, content: HtmlNode[] |
   }
 }
 
+export function a(text: string, href: string, className?: string) {
+  if (className) {
+    return {
+      type: 'a',
+      attributes: {
+        class: className,
+        href: href,
+      },
+      content: text,
+    };
+  } else {
+    return {
+      type: 'a',
+      attributes: {
+        href: href,
+      },
+      content: text,
+    };
+  }
+}
+
 export function emit(styles: string[], content: HtmlNode[]): string {
   return new HtmlCreator([
     tag('head', [

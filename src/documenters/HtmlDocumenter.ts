@@ -11,7 +11,8 @@ import {
   DocParagraph,
   DocNode,
   DocPlainText,
-  DocCodeSpan
+  DocCodeSpan,
+  DocLinkTag
 } from '@microsoft/tsdoc';
 import {
   ApiModel,
@@ -46,6 +47,7 @@ import {
   tag,
   table,
   tr,
+  a,
 } from '../html/HtmlEmitter';
 
 /**
@@ -246,13 +248,7 @@ export class HtmlDocumenter {
     let pageContent = emit([ 'styles.css' ], [
       tag('header', [
         tag('div', 'header-top', [
-          {
-            type: 'a',
-            attributes: {
-              class: 'header-logo',
-              href: 'https://developers.symphony.com/',
-            }
-          }
+          a('', 'https://developers.symphony.com/', 'header-logo')
         ]),
         tag('div', 'header-bottom', [])
       ]),
@@ -649,14 +645,11 @@ export class HtmlDocumenter {
   }
 
   private _createTitleCell(apiItem: ApiItem): HtmlNode {
-    return {
-      type: 'a',
-      attributes: {
-        class: 'ref',
-        href: this._getLinkFilenameForApiItem(apiItem)
-      },
-      content: Utilities.getConciseSignature(apiItem)
-    };
+    return a(
+      Utilities.getConciseSignature(apiItem),
+      this._getLinkFilenameForApiItem(apiItem),
+      'ref',
+    );
   }
 
   /**
@@ -709,14 +702,7 @@ export class HtmlDocumenter {
   }
 
   private _writeBreadcrumb(output: HtmlNode[], apiItem: ApiItem): void {
-    output.push({
-      type: 'a',
-      attributes: {
-        class: 'breadcrumb',
-        href: this._getLinkFilenameForApiItem(this._apiModel)
-      },
-      content: 'Home'
-    });
+    output.push(a('Home', this._getLinkFilenameForApiItem(this._apiModel), 'breadcrumb'));
 
     for (const hierarchyItem of apiItem.getHierarchy()) {
       switch (hierarchyItem.kind) {
@@ -728,14 +714,7 @@ export class HtmlDocumenter {
           break;
         default:
           output.push(tag('span', 'breadcrumb', ' / '));
-          output.push({
-            type: 'a',
-            attributes: {
-              class: 'breadcrumb',
-              href: this._getLinkFilenameForApiItem(hierarchyItem)
-            },
-            content: hierarchyItem.displayName      
-          });
+          output.push(a(hierarchyItem.displayName, this._getLinkFilenameForApiItem(hierarchyItem), 'breadcrumb'));
       }
     }
   }
@@ -766,6 +745,14 @@ export class HtmlDocumenter {
         case DocNodeKind.CodeSpan:
           const code = node as DocCodeSpan;
           return tag('code', code.code);
+        case DocNodeKind.LinkTag:
+          const link = node as DocLinkTag;
+          if (link.urlDestination) {
+            return a(link.linkText || link.urlDestination, link.urlDestination);
+          } else {
+            console.warn('DocLinkTag with codeDestination not supported')
+            return a(link.linkText || 'Missing Link', 'missing-link');
+          }
         case DocNodeKind.PlainText:
           const plainText = node as DocPlainText;
           return tag('span', plainText.text);
