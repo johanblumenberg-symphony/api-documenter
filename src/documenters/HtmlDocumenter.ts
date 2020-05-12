@@ -10,7 +10,8 @@ import {
   DocNodeKind,
   DocParagraph,
   DocNode,
-  DocPlainText
+  DocPlainText,
+  DocCodeSpan
 } from '@microsoft/tsdoc';
 import {
   ApiModel,
@@ -762,6 +763,9 @@ export class HtmlDocumenter {
           return tag('p', this._createDocNodes(paragraph.nodes));
         case DocNodeKind.SoftBreak:
           return undefined;
+        case DocNodeKind.CodeSpan:
+          const code = node as DocCodeSpan;
+          return tag('code', code.code);
         case DocNodeKind.PlainText:
           const plainText = node as DocPlainText;
           return tag('span', plainText.text);
