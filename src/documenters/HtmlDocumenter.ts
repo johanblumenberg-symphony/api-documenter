@@ -88,7 +88,6 @@ export class HtmlDocumenter {
       });
     }
 
-    console.log();
     this._deleteOldOutputFiles();
 
     FileSystem.copyFile({
@@ -212,7 +211,7 @@ export class HtmlDocumenter {
       output.push(tag('div', 'signature-heading', 'Signature'));
     }
     signatures.forEach(apiItem => {
-      output.push(tag('pre', 'signature', apiItem.getExcerptWithModifiers()));
+      output.push(tag('pre', 'signature', apiItem.getExcerptWithModifiers().replace(/>/g, '&gt').replace(/</g, '&lt')));
     });
 
     apiItems.forEach(apiItem => {
@@ -619,13 +618,18 @@ export class HtmlDocumenter {
    */
   private _writeParameterTables(output: HtmlNode[], apiParameterListMixin: ApiParameterListMixin): void {
     const parametersTable = table([ 'Parameter', 'Type', 'Description' ]);
+    let description: HtmlNode | string = '';
 
     for (const apiParameter of apiParameterListMixin.parameters) {
+      if (apiParameter.tsdocParamBlock) {
+        description = this._createDocNodes(apiParameter.tsdocParamBlock.content.nodes)[0];
+      }
       parametersTable.content.push(
-        tr([
-          apiParameter.name,
-          apiParameter.parameterTypeExcerpt.text
-        ])
+          tr([
+            apiParameter.name,
+            apiParameter.parameterTypeExcerpt.text.replace(/>/g, '&gt').replace(/</g, '&lt'),
+            description
+          ])
       );
     }
 
@@ -768,7 +772,7 @@ export class HtmlDocumenter {
           if (link.urlDestination) {
             return a(link.linkText || link.urlDestination, link.urlDestination);
           } else {
-            console.warn('DocLinkTag with codeDestination not supported')
+            console.warn('DocLinkTag with codeDestination not supported');
             return a(link.linkText || 'Missing Link', 'missing-link');
           }
         case DocNodeKind.PlainText:
