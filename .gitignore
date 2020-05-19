@@ -74,5 +74,8 @@ dist
 # Visual Studio Code
 .vscode
 
+#Jetbrains
+.idea
+
 # Remove eventually
 package-deps.json

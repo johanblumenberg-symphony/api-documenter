@@ -1,4 +1,4 @@
-import * as HtmlCreator from 'html-creator';
+import * as HtmlCreator from './html-creator';
 
 export interface HtmlNode {
   type: string;
