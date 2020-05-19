@@ -619,13 +619,18 @@ export class HtmlDocumenter {
    */
   private _writeParameterTables(output: HtmlNode[], apiParameterListMixin: ApiParameterListMixin): void {
     const parametersTable = table([ 'Parameter', 'Type', 'Description' ]);
+    let description: HtmlNode | string = '';
 
     for (const apiParameter of apiParameterListMixin.parameters) {
+      if (apiParameter.tsdocParamBlock) {
+        description = this._createDocNodes(apiParameter.tsdocParamBlock.content.nodes)[0];
+      }
       parametersTable.content.push(
-        tr([
-          apiParameter.name,
-          apiParameter.parameterTypeExcerpt.text
-        ])
+          tr([
+            apiParameter.name,
+            apiParameter.parameterTypeExcerpt.text,
+            description
+          ])
       );
     }
 

@@ -18,9 +18,22 @@ const parseContent = (content, createElementMethod) => {
     if (content && content.constructor === Array) {
         return content.map(element => createElementMethod(element)).join('');
     }
-    return content || '';
+    return escapeHtmlEntities(content) || '';
 };
 
+const escapeHtmlEntities = (str) => {
+    const fn = (tag) => {
+        const charsToReplace = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&#34;',
+            "'": '&apos;'
+        };
+        return charsToReplace[tag] || tag;
+    };
+    return str.replace(/[&<>"']/g, fn);
+};
 /**
  * Creates a HTML element from the given data
  * @param {String} type - The HTML Tag type
