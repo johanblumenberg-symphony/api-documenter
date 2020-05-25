@@ -13,7 +13,9 @@ import {
   DocPlainText,
   DocCodeSpan,
   DocLinkTag,
-  DocEscapedText
+  DocEscapedText,
+  DocBlock,
+  StandardTags
 } from '@microsoft/tsdoc';
 import {
   ApiModel,
@@ -309,8 +311,14 @@ export class HtmlDocumenter {
   private _writeThrowsSection(output: HtmlNode[], apiItem: ApiItem): void {
     if (apiItem instanceof ApiDocumentedItem) {
       const tsdocComment: DocComment | undefined = apiItem.tsdocComment;
-
+      
       if (tsdocComment) {
+        const throwsBlocks: DocBlock[] = tsdocComment.customBlocks.filter(x => x.blockTag.tagNameWithUpperCase
+          === StandardTags.throws.tagNameWithUpperCase);
+        output.push(tag('h3', 'section-heading', 'Exceptions'));
+        for (const throwsBlock of throwsBlocks) {
+          output.push(tag('span', this._createDocNodes(throwsBlock.content.nodes)));
+        }
 /*
         // Write the @throws blocks
         const throwsBlocks: DocBlock[] = tsdocComment.customBlocks.filter(x => x.blockTag.tagNameWithUpperCase
@@ -760,6 +768,9 @@ export class HtmlDocumenter {
         case DocNodeKind.Paragraph:
           const paragraph = node as DocParagraph;
           return tag('p', this._createDocNodes(paragraph.nodes));
+        case DocNodeKind.Block:
+          const block = node as DocBlock;
+          return tag('div', this._createDocNodes(block.content.nodes));
         case DocNodeKind.SoftBreak:
           return undefined;
         case DocNodeKind.CodeSpan:
