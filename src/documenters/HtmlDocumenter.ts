@@ -319,20 +319,6 @@ export class HtmlDocumenter {
         for (const throwsBlock of throwsBlocks) {
           output.push(tag('span', this._createDocNodes(throwsBlock.content.nodes)));
         }
-/*
-        // Write the @throws blocks
-        const throwsBlocks: DocBlock[] = tsdocComment.customBlocks.filter(x => x.blockTag.tagNameWithUpperCase
-          === StandardTags.throws.tagNameWithUpperCase);
-
-          if (throwsBlocks.length > 0) {
-          const heading: string = 'Exceptions';
-          output.push(new DocHeading({ configuration: this._tsdocConfiguration, title: heading }));
-
-          for (const throwsBlock of throwsBlocks) {
-            this._appendSection(output, throwsBlock.content);
-          }
-        }
-*/
       }
     }
   }
