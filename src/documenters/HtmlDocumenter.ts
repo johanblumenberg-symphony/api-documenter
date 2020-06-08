@@ -317,10 +317,16 @@ export class HtmlDocumenter {
       if (tsdocComment) {
         const throwsBlocks: DocBlock[] = tsdocComment.customBlocks.filter(x => x.blockTag.tagNameWithUpperCase
           === StandardTags.throws.tagNameWithUpperCase);
+
         output.push(tag('h3', 'section-heading', 'Exceptions'));
+        const exceptionsTable = table([ 'Exception' ]);
+              
         for (const throwsBlock of throwsBlocks) {
-          output.push(tag('span', this._createDocNodes(throwsBlock.content.nodes)));
+          const row = tr([ tag('span', this._createDocNodes(throwsBlock.content.nodes)) ]);
+          exceptionsTable.content.push(row);
         }
+
+        output.push(exceptionsTable);
       }
     }
   }
