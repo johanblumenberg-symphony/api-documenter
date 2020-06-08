@@ -508,7 +508,7 @@ export class HtmlDocumenter {
       }
     }
 
-    if (eventsTable.content.length > 0) {
+    if (eventsTable.content.length > 1) {
       output.push(tag('h3', 'section-heading', 'Events'));
       output.push(eventsTable);
     }
