@@ -36,7 +36,8 @@ import {
   ApiParameterListMixin,
 //  ApiReturnTypeMixin,
   ApiDeclaredItem,
-  ApiNamespace
+  ApiNamespace,
+  ExcerptTokenKind
 } from '@microsoft/api-extractor-model';
 
 import { Utilities } from '../utils/Utilities';
@@ -361,7 +362,8 @@ export class HtmlDocumenter {
     const classesTable = table([ 'Class', 'Description' ]);
     const enumerationsTable = table([ 'Enumeration', 'Description' ]);
     const functionsTable = table([ 'Function', 'Description' ]);
-    const interfacesTable =table([ 'Interface', 'Description' ]);
+    const interfacesTable = table([ 'Interface', 'Description' ]);
+    const exceptionsTable = table([ 'Exception', 'Description' ]);
     const namespacesTable = table([ 'Namespace', 'Description' ]);
     const variablesTable= table([ 'Variable', 'Description' ]);
     const typeAliasesTable = table([ 'Type Alias', 'Description' ]);
@@ -369,6 +371,20 @@ export class HtmlDocumenter {
     const apiMembers: ReadonlyArray<ApiItem> = apiContainer.kind === ApiItemKind.Package ?
       (apiContainer as ApiPackage).entryPoints[0].members
       : (apiContainer as ApiNamespace).members;
+
+    function isError(item: ApiClass) {
+      if (item.extendsType && item.extendsType.excerpt) {
+        return item.extendsType.excerpt.tokens.some(token => {
+          if (token.kind === ExcerptTokenKind.Reference) {
+            if (token.text === 'Error') {
+              return true;
+            }
+          }
+          return false;
+        });
+      }
+      return false;
+    }
 
     for (const apiMember of apiMembers) {
 
@@ -379,7 +395,11 @@ export class HtmlDocumenter {
 
       switch (apiMember.kind) {
         case ApiItemKind.Class:
-          classesTable.content.push(row);
+          if (!isError(apiMember as ApiClass)) {
+            classesTable.content.push(row);
+          } else {
+            exceptionsTable.content.push(row);            
+          }
           this._writeApiItemPage(apiMember);
           break;
 
@@ -447,6 +467,11 @@ export class HtmlDocumenter {
     if (typeAliasesTable.content.length > 1) {
       output.push(tag('h3', 'section-heading', 'Types'));
       output.push(typeAliasesTable);
+    }
+
+    if (exceptionsTable.content.length > 1) {
+      output.push(tag('h3', 'section-heading', 'Exceptions'));
+      output.push(exceptionsTable);
     }
   }
 
