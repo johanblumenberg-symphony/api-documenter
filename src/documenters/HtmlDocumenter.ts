@@ -16,7 +16,8 @@ import {
   DocEscapedText,
   DocBlock,
   StandardTags,
-  DocFencedCode
+  DocFencedCode,
+  DocInlineTag
 } from '@microsoft/tsdoc';
 import {
   ApiModel,
@@ -758,7 +759,10 @@ export class HtmlDocumenter {
         case DocNodeKind.Block:
           const block = node as DocBlock;
           return tag('div', this._createDocNodes(block.content.nodes));
-        case DocNodeKind.SoftBreak:
+        case DocNodeKind.InlineTag:
+          const blocktag = node as DocInlineTag;
+          return tag('span', blocktag.tagName);
+          case DocNodeKind.SoftBreak:
           return undefined;
         case DocNodeKind.CodeSpan:
           const code = node as DocCodeSpan;
