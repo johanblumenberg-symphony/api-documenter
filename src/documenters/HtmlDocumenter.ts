@@ -17,7 +17,9 @@ import {
   DocBlock,
   StandardTags,
   DocFencedCode,
-  DocInlineTag
+  DocInlineTag,
+  DocHtmlStartTag,
+  DocHtmlEndTag
 } from '@microsoft/tsdoc';
 import {
   ApiModel,
@@ -49,7 +51,7 @@ import { DocumenterConfig } from './DocumenterConfig';
 import { MarkdownDocumenterAccessor } from '../plugin/MarkdownDocumenterAccessor';
 import {
   HtmlNode,
-  emit,
+  HtmlEmitter,
   tag,
   table,
   tr,
@@ -127,7 +129,18 @@ export class HtmlDocumenter {
   }
 
   private _writeApiItemPageWithSiblings(apiItems: readonly ApiItem[]): void {
-    const output: HtmlNode[] = [];
+    const output = new HtmlEmitter();
+    output.addStyle('styles.css');
+
+    output.appendChild(
+      tag('header', [
+        tag('div', 'header-top', [
+          a('', 'https://developers.symphony.com/', 'header-logo')
+        ]),
+        tag('div', 'header-bottom', [])
+      ]),
+    );
+    output.openNode(tag('div', 'main', []));
 
     this._writeBreadcrumb(output, apiItems[0]);
 
@@ -135,45 +148,45 @@ export class HtmlDocumenter {
 
     switch (apiItems[0].kind) {
       case ApiItemKind.Class:
-        output.push(tag('h1', 'page-header', `${scopedName} class`));
+        output.appendChild(tag('h1', 'page-header', `${scopedName} class`));
         break;
       case ApiItemKind.Enum:
-        output.push(tag('h1', 'page-header', `${scopedName} enum`));
+        output.appendChild(tag('h1', 'page-header', `${scopedName} enum`));
         break;
       case ApiItemKind.Interface:
-        output.push(tag('h1', 'page-header', `${scopedName} interface`));
+        output.appendChild(tag('h1', 'page-header', `${scopedName} interface`));
         break;
       case ApiItemKind.Constructor:
       case ApiItemKind.ConstructSignature:
-        output.push(tag('h1', 'page-header', `${scopedName}`));
+        output.appendChild(tag('h1', 'page-header', `${scopedName}`));
         break;
       case ApiItemKind.Method:
       case ApiItemKind.MethodSignature:
-        output.push(tag('h1', 'page-header', `${scopedName} method`));
+        output.appendChild(tag('h1', 'page-header', `${scopedName} method`));
         break;
       case ApiItemKind.Function:
-        output.push(tag('h1', 'page-header', `${scopedName} function`));
+        output.appendChild(tag('h1', 'page-header', `${scopedName} function`));
         break;
       case ApiItemKind.Model:
-        output.push(tag('h1', 'page-header', `${scopedName} API Reference`));
+        output.appendChild(tag('h1', 'page-header', `${scopedName} API Reference`));
         break;
       case ApiItemKind.Namespace:
-        output.push(tag('h1', 'page-header', `${scopedName} namespace`));
+        output.appendChild(tag('h1', 'page-header', `${scopedName} namespace`));
         break;
       case ApiItemKind.Package:
         console.log(`Writing ${apiItems[0].displayName} package`);
         const unscopedPackageName: string = PackageName.getUnscopedName(apiItems[0].displayName);
-        output.push(tag('h1', 'page-header', `${unscopedPackageName} package`));
+        output.appendChild(tag('h1', 'page-header', `${unscopedPackageName} package`));
         break;
       case ApiItemKind.Property:
       case ApiItemKind.PropertySignature:
-        output.push(tag('h1', 'page-header', `${scopedName} property`));
+        output.appendChild(tag('h1', 'page-header', `${scopedName} property`));
         break;
       case ApiItemKind.TypeAlias:
-        output.push(tag('h1', 'page-header', `${scopedName} type`));
+        output.appendChild(tag('h1', 'page-header', `${scopedName} type`));
         break;
       case ApiItemKind.Variable:
-        output.push(tag('h1', 'page-header', `${scopedName} variable`));
+        output.appendChild(tag('h1', 'page-header', `${scopedName} variable`));
         break;
       default:
         throw new Error('Unsupported API item kind: ' + apiItems[0].kind);
@@ -191,7 +204,7 @@ export class HtmlDocumenter {
 
   /*
           if (tsdocComment.deprecatedBlock) {
-            output.push(
+            output.appendChild(
               new DocNoteBox({ configuration: this._tsdocConfiguration },
                 [
                   new DocParagraph({ configuration: this._tsdocConfiguration }, [
@@ -207,17 +220,17 @@ export class HtmlDocumenter {
           }
   */
 
-          output.push(tag('div', 'summary', this._createDocNodes(tsdocComment.summarySection.nodes)));
+          output.appendChild(tag('div', 'summary', this._createDocNodes(tsdocComment.summarySection.nodes)));
         }
       }
     });
 
     const signatures = apiItems.filter(isApiDeclaredItem).filter(apiItem => apiItem.excerpt.text.length > 0);
     if (signatures.length > 0) {
-      output.push(tag('div', 'signature-heading', 'Signature'));
+      output.appendChild(tag('div', 'signature-heading', 'Signature'));
     }
     signatures.forEach(apiItem => {
-      output.push(tag('pre', 'signature', apiItem.getExcerptWithModifiers()));
+      output.appendChild(tag('pre', 'signature', apiItem.getExcerptWithModifiers()));
     });
 
     apiItems.forEach(apiItem => {
@@ -264,31 +277,25 @@ export class HtmlDocumenter {
       }
     });
 
+    output.closeNode('div');
+
     const filename: string = path.join(this._outputFolder, this._getFilenameForApiItem(apiItems[0]));
-    let pageContent = emit([ 'styles.css' ], [
-      tag('header', [
-        tag('div', 'header-top', [
-          a('', 'https://developers.symphony.com/', 'header-logo')
-        ]),
-        tag('div', 'header-bottom', [])
-      ]),
-      tag('div', 'main', output)
-    ]);
+    let pageContent = output.emit();
 
     FileSystem.writeFile(filename, pageContent, {
       convertLineEndings: this._documenterConfig ? this._documenterConfig.newlineKind : NewlineKind.CrLf
     });
   }
 
-  private _writeRemarksSection(output: HtmlNode[], apiItem: ApiItem): void {
+  private _writeRemarksSection(output: HtmlEmitter, apiItem: ApiItem): void {
     if (apiItem instanceof ApiDocumentedItem) {
       const tsdocComment: DocComment | undefined = apiItem.tsdocComment;
 
       if (tsdocComment) {
         // Write the @remarks block
         if (tsdocComment.remarksBlock) {
-          output.push(tag('div', 'remarks', 'Remarks'));
-          output.push(tag('div', this._createDocNodes(tsdocComment.remarksBlock.content.nodes)));
+          output.appendChild(tag('div', 'remarks', 'Remarks'));
+          output.appendChild(tag('div', this._createDocNodes(tsdocComment.remarksBlock.content.nodes)));
         }
 
 /*
@@ -300,7 +307,7 @@ export class HtmlDocumenter {
         for (const exampleBlock of exampleBlocks) {
           const heading: string = exampleBlocks.length > 1 ? `Example ${exampleNumber}` : 'Example';
 
-          output.push(new DocHeading({ configuration: this._tsdocConfiguration, title: heading }));
+          output.appendChild(new DocHeading({ configuration: this._tsdocConfiguration, title: heading }));
 
           this._appendSection(output, exampleBlock.content);
 
@@ -311,7 +318,7 @@ export class HtmlDocumenter {
     }
   }
 
-  private _writeThrowsSection(output: HtmlNode[], apiItem: ApiItem): void {
+  private _writeThrowsSection(output: HtmlEmitter, apiItem: ApiItem): void {
     if (apiItem instanceof ApiDocumentedItem) {
       const tsdocComment: DocComment | undefined = apiItem.tsdocComment;
       
@@ -319,7 +326,7 @@ export class HtmlDocumenter {
         const throwsBlocks: DocBlock[] = tsdocComment.customBlocks.filter(x => x.blockTag.tagNameWithUpperCase
           === StandardTags.throws.tagNameWithUpperCase);
 
-        output.push(tag('h3', 'section-heading', 'Exceptions'));
+        output.appendChild(tag('h3', 'section-heading', 'Exceptions'));
         const exceptionsTable = table([ 'Exception' ]);
               
         for (const throwsBlock of throwsBlocks) {
@@ -327,7 +334,7 @@ export class HtmlDocumenter {
           exceptionsTable.content.push(row);
         }
 
-        output.push(exceptionsTable);
+        output.appendChild(exceptionsTable);
       }
     }
   }
@@ -335,7 +342,7 @@ export class HtmlDocumenter {
   /**
    * GENERATE PAGE: MODEL
    */
-  private _writeModelTable(output: HtmlNode[], apiModel: ApiModel): void {
+  private _writeModelTable(output: HtmlEmitter, apiModel: ApiModel): void {
     const packagesTable = table([ 'Package', 'Description' ]);
 
     for (const apiMember of apiModel.members) {
@@ -350,15 +357,15 @@ export class HtmlDocumenter {
     }
 
     if (packagesTable.content.length > 0) {
-      output.push(tag('h3', 'section-heading', 'Packages'));
-      output.push(packagesTable);
+      output.appendChild(tag('h3', 'section-heading', 'Packages'));
+      output.appendChild(packagesTable);
     }
   }
 
   /**
    * GENERATE PAGE: PACKAGE or NAMESPACE
    */
-  private _writePackageOrNamespaceTables(output: HtmlNode[], apiContainer: ApiPackage | ApiNamespace): void {
+  private _writePackageOrNamespaceTables(output: HtmlEmitter, apiContainer: ApiPackage | ApiNamespace): void {
     const classesTable = table([ 'Class', 'Description' ]);
     const enumerationsTable = table([ 'Enumeration', 'Description' ]);
     const functionsTable = table([ 'Function', 'Description' ]);
@@ -436,49 +443,49 @@ export class HtmlDocumenter {
     }
 
     if (classesTable.content.length > 1) {
-      output.push(tag('h3', 'section-heading', 'Classes'));
-      output.push(classesTable);
+      output.appendChild(tag('h3', 'section-heading', 'Classes'));
+      output.appendChild(classesTable);
     }
 
     if (enumerationsTable.content.length > 1) {
-      output.push(tag('h3', 'section-heading', 'Enumerations'));
-      output.push(enumerationsTable);
+      output.appendChild(tag('h3', 'section-heading', 'Enumerations'));
+      output.appendChild(enumerationsTable);
     }
     if (functionsTable.content.length > 1) {
-      output.push(tag('h3', 'section-heading', 'Functions'));
-      output.push(functionsTable);
+      output.appendChild(tag('h3', 'section-heading', 'Functions'));
+      output.appendChild(functionsTable);
     }
 
     if (interfacesTable.content.length > 1) {
-      output.push(tag('h3', 'section-heading', 'Interfaces'));
-      output.push(interfacesTable);
+      output.appendChild(tag('h3', 'section-heading', 'Interfaces'));
+      output.appendChild(interfacesTable);
     }
 
     if (namespacesTable.content.length > 1) {
-      output.push(tag('h3', 'section-heading', 'Namespaces'));
-      output.push(namespacesTable);
+      output.appendChild(tag('h3', 'section-heading', 'Namespaces'));
+      output.appendChild(namespacesTable);
     }
 
     if (variablesTable.content.length > 1) {
-      output.push(tag('h3', 'section-heading', 'Variables'));
-      output.push(variablesTable);
+      output.appendChild(tag('h3', 'section-heading', 'Variables'));
+      output.appendChild(variablesTable);
     }
 
     if (typeAliasesTable.content.length > 1) {
-      output.push(tag('h3', 'section-heading', 'Types'));
-      output.push(typeAliasesTable);
+      output.appendChild(tag('h3', 'section-heading', 'Types'));
+      output.appendChild(typeAliasesTable);
     }
 
     if (exceptionsTable.content.length > 1) {
-      output.push(tag('h3', 'section-heading', 'Exceptions'));
-      output.push(exceptionsTable);
+      output.appendChild(tag('h3', 'section-heading', 'Exceptions'));
+      output.appendChild(exceptionsTable);
     }
   }
 
   /**
    * GENERATE PAGE: CLASS
    */
-  private _writeClassTables(output: HtmlNode[], apiClass: ApiClass): void {
+  private _writeClassTables(output: HtmlEmitter, apiClass: ApiClass): void {
     const eventsTable = table([ 'Property', 'Modifiers', 'Type', 'Description' ]);
     const constructorsTable = table([ 'Constructor', 'Modifiers', 'Description' ]);
     const propertiesTable = table([ 'Property', 'Modifiers', 'Type', 'Description' ]);
@@ -541,30 +548,30 @@ export class HtmlDocumenter {
     }
 
     if (eventsTable.content.length > 1) {
-      output.push(tag('h3', 'section-heading', 'Events'));
-      output.push(eventsTable);
+      output.appendChild(tag('h3', 'section-heading', 'Events'));
+      output.appendChild(eventsTable);
     }
 
     if (constructorsTable.content.length > 1) {
-      output.push(tag('h3', 'section-heading', 'Constructors'));
-      output.push(constructorsTable);
+      output.appendChild(tag('h3', 'section-heading', 'Constructors'));
+      output.appendChild(constructorsTable);
     }
 
     if (propertiesTable.content.length > 1) {
-      output.push(tag('h3', 'section-heading', 'Properties'));
-      output.push(propertiesTable);
+      output.appendChild(tag('h3', 'section-heading', 'Properties'));
+      output.appendChild(propertiesTable);
     }
 
     if (methodsTable.content.length > 1) {
-      output.push(tag('h3', 'section-heading', 'Methods'));
-      output.push(methodsTable);
+      output.appendChild(tag('h3', 'section-heading', 'Methods'));
+      output.appendChild(methodsTable);
     }
   }
 
   /**
    * GENERATE PAGE: ENUM
    */
-  private _writeEnumTables(output: HtmlNode[], apiEnum: ApiEnum): void {
+  private _writeEnumTables(output: HtmlEmitter, apiEnum: ApiEnum): void {
     const enumMembersTable = table([ 'Member', 'Value', 'Description' ]);
 
     for (const apiEnumMember of apiEnum.members) {
@@ -576,15 +583,15 @@ export class HtmlDocumenter {
     }
 
     if (enumMembersTable.content.length > 1) {
-      output.push(tag('h3', 'section-heading', 'Enumeration Members'));
-      output.push(enumMembersTable);
+      output.appendChild(tag('h3', 'section-heading', 'Enumeration Members'));
+      output.appendChild(enumMembersTable);
     }
   }
 
   /**
    * GENERATE PAGE: INTERFACE
    */
-  private _writeInterfaceTables(output: HtmlNode[], apiClass: ApiInterface): void {
+  private _writeInterfaceTables(output: HtmlEmitter, apiClass: ApiInterface): void {
     const eventsTable = table([ 'Property', 'Type', 'Description' ]);
     const propertiesTable = table([ 'Property', 'Type', 'Description' ]);
     const methodsTable = table([ 'Method', 'Description' ]);
@@ -626,25 +633,25 @@ export class HtmlDocumenter {
     }
 
     if (eventsTable.content.length > 1) {
-      output.push(tag('h3', 'section-heading', 'Events'));
-      output.push(eventsTable);
+      output.appendChild(tag('h3', 'section-heading', 'Events'));
+      output.appendChild(eventsTable);
     }
 
     if (propertiesTable.content.length > 1) {
-      output.push(tag('h3', 'section-heading', 'Properties'));
-      output.push(propertiesTable);
+      output.appendChild(tag('h3', 'section-heading', 'Properties'));
+      output.appendChild(propertiesTable);
     }
 
     if (methodsTable.content.length > 1) {
-      output.push(tag('h3', 'section-heading', 'Methods'));
-      output.push(methodsTable);
+      output.appendChild(tag('h3', 'section-heading', 'Methods'));
+      output.appendChild(methodsTable);
     }
   }
 
   /**
    * GENERATE PAGE: FUNCTION-LIKE
    */
-  private _writeParameterTables(output: HtmlNode[], apiParameterListMixin: ApiParameterListMixin): void {
+  private _writeParameterTables(output: HtmlEmitter, apiParameterListMixin: ApiParameterListMixin): void {
     const parametersTable = table([ 'Parameter', 'Type', 'Description' ]);
     let description: HtmlNode | string = '';
 
@@ -662,13 +669,13 @@ export class HtmlDocumenter {
     }
 
     if (parametersTable.content.length > 1) {
-      output.push(tag('h3', 'section-heading', 'Parameters'));
-      output.push(parametersTable);
+      output.appendChild(tag('h3', 'section-heading', 'Parameters'));
+      output.appendChild(parametersTable);
     }
 /*
     if (ApiReturnTypeMixin.isBaseClassOf(apiParameterListMixin)) {
       const returnTypeExcerpt: Excerpt = apiParameterListMixin.returnTypeExcerpt;
-      output.push(
+      output.appendChild(
         new DocParagraph({ configuration }, [
           new DocEmphasisSpan({ configuration, bold: true}, [
             new DocPlainText({ configuration, text: 'Returns:' })
@@ -676,7 +683,7 @@ export class HtmlDocumenter {
         ])
       );
 
-      output.push(
+      output.appendChild(
         new DocParagraph({ configuration }, [
           new DocCodeSpan({ configuration, code: returnTypeExcerpt.text.trim() || '(not declared)' })
         ])
@@ -748,8 +755,8 @@ export class HtmlDocumenter {
     return tag('code', 'type');
   }
 
-  private _writeBreadcrumb(output: HtmlNode[], apiItem: ApiItem): void {
-    output.push(a('Home', this._getLinkFilenameForApiItem(this._apiModel), 'breadcrumb'));
+  private _writeBreadcrumb(output: HtmlEmitter, apiItem: ApiItem): void {
+    output.appendChild(a('Home', this._getLinkFilenameForApiItem(this._apiModel), 'breadcrumb'));
 
     for (const hierarchyItem of apiItem.getHierarchy()) {
       switch (hierarchyItem.kind) {
@@ -760,18 +767,18 @@ export class HtmlDocumenter {
           // this may change in the future.
           break;
         default:
-          output.push(tag('span', 'breadcrumb', ' / '));
-          output.push(a(hierarchyItem.displayName, this._getLinkFilenameForApiItem(hierarchyItem), 'breadcrumb'));
+          output.appendChild(tag('span', 'breadcrumb', ' / '));
+          output.appendChild(a(hierarchyItem.displayName, this._getLinkFilenameForApiItem(hierarchyItem), 'breadcrumb'));
       }
     }
   }
 
-  private _writeBetaWarning(output: HtmlNode[]): void {
+  private _writeBetaWarning(output: HtmlEmitter): void {
 /*
     const configuration: TSDocConfiguration = this._tsdocConfiguration;
     const betaWarning: string = 'This API is provided as a preview for developers and may change'
       + ' based on feedback that we receive.  Do not use this API in a production environment.';
-    output.push(
+    output.appendChild(
       new DocNoteBox({ configuration }, [
         new DocParagraph({ configuration }, [
           new DocPlainText({ configuration, text: betaWarning })
@@ -782,43 +789,63 @@ export class HtmlDocumenter {
   }
 
   private _createDocNodes(nodes: readonly DocNode[]): HtmlNode[] {
-    return nodes.map(node => {
+    const result = new HtmlEmitter();
+
+    nodes.forEach(node => {
       switch (node.kind) {
         case DocNodeKind.Paragraph:
           const paragraph = node as DocParagraph;
-          return tag('p', this._createDocNodes(paragraph.nodes));
+          result.appendChild(tag('p', this._createDocNodes(paragraph.nodes)));
+          break;
         case DocNodeKind.Block:
           const block = node as DocBlock;
-          return tag('div', this._createDocNodes(block.content.nodes));
+          result.appendChild(tag('div', this._createDocNodes(block.content.nodes)));
+          break;
         case DocNodeKind.InlineTag:
           const blocktag = node as DocInlineTag;
-          return tag('span', blocktag.tagName);
-          case DocNodeKind.SoftBreak:
-          return undefined;
+          result.appendChild(tag('span', blocktag.tagName));
+          break;
+        case DocNodeKind.SoftBreak:
+          break;
         case DocNodeKind.CodeSpan:
           const code = node as DocCodeSpan;
-          return tag('code', code.code);
+          result.appendChild(tag('code', code.code));
+          break;
         case DocNodeKind.FencedCode:
           const fcode = node as DocFencedCode;
-          return tag('pre', fcode.code);
+          result.appendChild(tag('pre', fcode.code));
+          break;
         case DocNodeKind.EscapedText:
           const escapedText = node as DocEscapedText;
-          return tag('span', escapedText.decodedText);
+          result.appendChild(tag('span', escapedText.decodedText));
+          break;
         case DocNodeKind.LinkTag:
           const link = node as DocLinkTag;
           if (link.urlDestination) {
-            return a(link.linkText || link.urlDestination, link.urlDestination);
+            result.appendChild(a(link.linkText || link.urlDestination, link.urlDestination));
           } else {
             console.warn('DocLinkTag with codeDestination not supported')
-            return a(link.linkText || 'Missing Link', 'missing-link');
+            result.appendChild(a(link.linkText || 'Missing Link', 'missing-link'));
           }
+          break;
         case DocNodeKind.PlainText:
           const plainText = node as DocPlainText;
-          return tag('span', plainText.text);
+          result.appendChild(tag('span', plainText.text));
+          break;
+        case DocNodeKind.HtmlStartTag:
+          const htmlStartTag = node as DocHtmlStartTag;
+          result.openNode(tag(htmlStartTag.name, []));
+          break;
+        case DocNodeKind.HtmlEndTag:
+          const htmlEndTag = node as DocHtmlEndTag;
+          result.closeNode(htmlEndTag.name);
+          break;
         default:
           throw new Error('Unsupported DocNode kind: ' + node.kind);
       }
-    }).filter(n => !!n) as HtmlNode[];
+    });
+
+    return result.root().content;
   }
 
   private _getFilenameForApiItem(apiItem: ApiItem): string {

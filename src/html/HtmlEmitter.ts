@@ -1,8 +1,12 @@
 import * as HtmlCreator from './html-creator';
 
+export interface Attributes {
+  [ name: string ]: string | undefined;
+}
+
 export interface HtmlNode {
   type: string;
-  attributes?: {};
+  attributes?: Attributes;
   content?: HtmlNode[] | string;
 }
 
@@ -80,18 +84,66 @@ export function a(text: string, href: string, className?: string) {
   }
 }
 
-export function emit(styles: string[], content: HtmlNode[]): string {
-  return new HtmlCreator([
-    tag('head', [
-      ...styles.map(s => ({
-        type: 'link',
-        attributes: {
-          rel: 'stylesheet',
-          type: 'text/css',
-          href: s
-        }
-      }))
-    ]),
-    tag('body', content)
-  ]).renderHTML();
+export class HtmlEmitter {
+  private _root: BlockHtmlNode[];
+  private _current: BlockHtmlNode;
+  private _styles: string[] = [];
+
+  constructor(rootTag = 'body') {
+    this._root = [{
+      type: rootTag,
+      content: [],
+    }];
+    this._current = this._root[0];
+  }
+
+  public addStyle(style: string) {
+    this._styles.push(style);
+  }
+
+  public appendChild(child: HtmlNode) {
+    this._current.content.push(child);
+  }
+
+  public openNode(child: BlockHtmlNode, fn?: (emitter: HtmlEmitter) => void) {
+    this._current.content.push(child);
+    this._current = child;
+    this._root.push(child);
+
+    if (fn) {
+      fn(this);
+      this.closeNode(child.type);
+    }
+  }
+
+  public closeNode(name: string) {
+    if (this._current.type !== name) {
+      throw new Error(`Unexpected closing tag. Expected: ${this._current.type} Actual: ${name}`);
+    } else if (this._root.length === 1) {
+      throw new Error(`Unexpected closing tag: ${name}`);
+    } else {
+      this._root.pop();
+      this._current = this._root[this._root.length - 1];
+    }
+  }
+
+  public root() {
+    return this._root[0];
+  }
+
+  public emit(): string {
+    return new HtmlCreator([
+      tag('head', [
+        ...this._styles.map(s => ({
+          type: 'link',
+          attributes: {
+            rel: 'stylesheet',
+            type: 'text/css',
+            href: s
+          }
+        }))
+      ]),
+      this._root[0],
+    ]).renderHTML();
+  }
 }
