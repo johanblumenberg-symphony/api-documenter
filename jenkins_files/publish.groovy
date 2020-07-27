@@ -9,7 +9,7 @@ node {
     checkout scm
 
     try {
-        withNvm("v10.5.0", "npmrcFile") {
+        withNvm("v12.14.0", "npmrcFile") {
             stage("Install") {
                 sh "npm install"
             }
