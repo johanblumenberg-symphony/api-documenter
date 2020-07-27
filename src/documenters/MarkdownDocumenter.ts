@@ -61,6 +61,20 @@ function isApiDeclaredItem(apiItem: ApiItem): apiItem is ApiDeclaredItem {
   return apiItem instanceof ApiDeclaredItem;
 }
 
+function isError(item: ApiClass) {
+  if (item.extendsType && item.extendsType.excerpt) {
+    return item.extendsType.excerpt.tokens.some(token => {
+      if (token.kind === ExcerptTokenKind.Reference) {
+        if (token.text === 'Error') {
+          return true;
+        }
+      }
+      return false;
+    });
+  }
+  return false;
+}
+
 /**
  * Renders API documentation in the Markdown file format.
  * For more info:  https://en.wikipedia.org/wiki/Markdown
@@ -468,6 +482,11 @@ export class MarkdownDocumenter {
       headerTitles: ['Interface', 'Description']
     });
 
+    const errorsTable: DocTable = new DocTable({
+      configuration,
+      headerTitles: ['Error', 'Description']
+    });
+
     const namespacesTable: DocTable = new DocTable({
       configuration,
       headerTitles: ['Namespace', 'Description']
@@ -496,7 +515,11 @@ export class MarkdownDocumenter {
 
       switch (apiMember.kind) {
         case ApiItemKind.Class:
-          classesTable.addRow(row);
+          if (!isError(apiMember as ApiClass)) {
+            classesTable.addRow(row);
+          } else {
+            errorsTable.addRow(row);
+          }
           this._writeApiItemPage(apiMember);
           break;
 
@@ -564,6 +587,11 @@ export class MarkdownDocumenter {
     if (typeAliasesTable.rows.length > 0) {
       output.appendNode(new DocHeading({ configuration: this._tsdocConfiguration, title: 'Type Aliases' }));
       output.appendNode(typeAliasesTable);
+    }
+
+    if (errorsTable.rows.length > 0) {
+      output.appendNode(new DocHeading({ configuration: this._tsdocConfiguration, title: 'Errors' }));
+      output.appendNode(errorsTable);
     }
   }
 
