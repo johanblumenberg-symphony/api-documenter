@@ -861,22 +861,29 @@ export class MarkdownDocumenter {
     }
 
     if (ApiReturnTypeMixin.isBaseClassOf(apiParameterListMixin)) {
-      const returnTypeExcerpt: Excerpt = apiParameterListMixin.returnTypeExcerpt;
-      output.appendNode(
-        new DocParagraph({ configuration }, [
-          new DocEmphasisSpan({ configuration, bold: true }, [
-            new DocPlainText({ configuration, text: 'Returns:' })
-          ])
+      const returnsTable: DocTable = new DocTable({
+        configuration,
+        headerTitles: ['Type', 'Description']
+      });
+
+      const returnsDescription: DocSection = new DocSection({ configuration });
+      if (apiParameterListMixin instanceof ApiDocumentedItem) {
+        if (apiParameterListMixin.tsdocComment && apiParameterListMixin.tsdocComment.returnsBlock) {
+          this._appendSection(returnsDescription, apiParameterListMixin.tsdocComment.returnsBlock.content);
+        }
+      }
+
+      returnsTable.addRow(
+        new DocTableRow({ configuration }, [
+          new DocTableCell({ configuration }, [
+            this._createParagraphForTypeExcerpt(apiParameterListMixin.returnTypeExcerpt)
+          ]),
+          new DocTableCell({ configuration }, returnsDescription.nodes)
         ])
       );
 
-      output.appendNode(this._createParagraphForTypeExcerpt(returnTypeExcerpt));
-
-      if (apiParameterListMixin instanceof ApiDocumentedItem) {
-        if (apiParameterListMixin.tsdocComment && apiParameterListMixin.tsdocComment.returnsBlock) {
-          this._appendSection(output, apiParameterListMixin.tsdocComment.returnsBlock.content);
-        }
-      }
+      output.appendNode(new DocHeading({ configuration: this._tsdocConfiguration, title: 'Returns' }));
+      output.appendNode(returnsTable);
     }
   }
 
