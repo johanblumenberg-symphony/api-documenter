@@ -414,12 +414,26 @@ export class MarkdownDocumenter {
         );
 
         if (throwsBlocks.length > 0) {
-          const heading: string = 'Exceptions';
-          output.appendNode(new DocHeading({ configuration: this._tsdocConfiguration, title: heading }));
+          const configuration: TSDocConfiguration = this._tsdocConfiguration;
+          const throwsTable: DocTable = new DocTable({
+            configuration,
+            headerTitles: ['Error']
+          });
+
 
           for (const throwsBlock of throwsBlocks) {
-            this._appendSection(output, throwsBlock.content);
+            const parameterDescription: DocSection = new DocSection({ configuration });
+            this._appendSection(parameterDescription, throwsBlock.content);
+      
+            throwsTable.addRow(
+              new DocTableRow({ configuration }, [
+                new DocTableCell({ configuration }, parameterDescription.nodes)
+              ])
+            );
           }
+
+          output.appendNode(new DocHeading({ configuration: this._tsdocConfiguration, title: 'Throws' }));
+          output.appendNode(throwsTable);
         }
       }
     }
