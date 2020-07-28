@@ -22,15 +22,16 @@
   "typings": "dist/rollup.d.ts",
   "dependencies": {
     "@microsoft/api-extractor-model": "7.8.12",
+    "@microsoft/tsdoc": "0.12.19",
     "@rushstack/node-core-library": "3.25.0",
     "@rushstack/ts-command-line": "4.4.6",
-    "@microsoft/tsdoc": "0.12.19",
+    "@symphony/rtc-builder": "^2.0.39",
     "colors": "~1.2.1",
+    "he": "^1.2.0",
     "js-yaml": "~3.13.1",
-    "resolve": "~1.17.0",
     "lodash": "^4.17.5",
     "mkdirp": "0.5.1",
-    "he": "^1.2.0"
+    "resolve": "~1.17.0"
   },
   "devDependencies": {
     "@microsoft/rush-stack-compiler-3.5": "0.8.1",
