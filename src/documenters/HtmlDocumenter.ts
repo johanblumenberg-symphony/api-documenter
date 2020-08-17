@@ -34,14 +34,13 @@ import {
   ApiStaticMixin,
   ApiPropertyItem,
   ApiInterface,
-//  Excerpt,
   ApiParameterListMixin,
-//  ApiReturnTypeMixin,
   ApiDeclaredItem,
   ApiNamespace,
   ExcerptTokenKind,
   Excerpt,
-  ApiReturnTypeMixin
+  ApiReturnTypeMixin,
+  IResolveDeclarationReferenceResult
 } from '@microsoft/api-extractor-model';
 
 import { Utilities } from '../utils/Utilities';
@@ -62,6 +61,12 @@ import {
 
 function isApiDeclaredItem(apiItem: ApiItem): apiItem is ApiDeclaredItem {
   return apiItem instanceof ApiDeclaredItem;
+}
+
+class CustomHtmlEmitter extends HtmlEmitter {
+  constructor(public contextApiItem: ApiItem) {
+    super();
+  }
 }
 
 /**
@@ -131,7 +136,7 @@ export class HtmlDocumenter {
   }
 
   private _writeApiItemPageWithSiblings(apiItems: readonly ApiItem[]): void {
-    const output = new HtmlEmitter();
+    const output = new CustomHtmlEmitter(apiItems[0]);
     output.addStyle('styles.css');
 
     output.appendChild(
@@ -222,7 +227,7 @@ export class HtmlDocumenter {
           }
   */
 
-          output.appendChild(tag('div', 'summary', this._createDocNodes(tsdocComment.summarySection.nodes)));
+          output.appendChild(tag('div', 'summary', this._createDocNodes(tsdocComment.summarySection.nodes, output.contextApiItem)));
         }
       }
     });
@@ -289,7 +294,7 @@ export class HtmlDocumenter {
     });
   }
 
-  private _writeRemarksSection(output: HtmlEmitter, apiItem: ApiItem): void {
+  private _writeRemarksSection(output: CustomHtmlEmitter, apiItem: ApiItem): void {
     if (apiItem instanceof ApiDocumentedItem) {
       const tsdocComment: DocComment | undefined = apiItem.tsdocComment;
 
@@ -297,7 +302,7 @@ export class HtmlDocumenter {
         // Write the @remarks block
         if (tsdocComment.remarksBlock) {
           output.appendChild(tag('h3', 'section-heading', 'Remarks'));
-          output.appendChild(tag('div', this._createDocNodes(tsdocComment.remarksBlock.content.nodes)));
+          output.appendChild(tag('div', this._createDocNodes(tsdocComment.remarksBlock.content.nodes, output.contextApiItem)));
         }
 
 /*
@@ -320,7 +325,7 @@ export class HtmlDocumenter {
     }
   }
 
-  private _writeThrowsSection(output: HtmlEmitter, apiItem: ApiItem): void {
+  private _writeThrowsSection(output: CustomHtmlEmitter, apiItem: ApiItem): void {
     if (apiItem instanceof ApiDocumentedItem) {
       const tsdocComment: DocComment | undefined = apiItem.tsdocComment;
       
@@ -332,7 +337,7 @@ export class HtmlDocumenter {
         const exceptionsTable = table([ 'Error' ]);
               
         for (const throwsBlock of throwsBlocks) {
-          const row = tr([ tag('span', this._createDocNodes(throwsBlock.content.nodes)) ]);
+          const row = tr([ tag('span', this._createDocNodes(throwsBlock.content.nodes, output.contextApiItem)) ]);
           exceptionsTable.content.push(row);
         }
 
@@ -344,11 +349,11 @@ export class HtmlDocumenter {
   /**
    * GENERATE PAGE: MODEL
    */
-  private _writeModelTable(output: HtmlEmitter, apiModel: ApiModel): void {
+  private _writeModelTable(output: CustomHtmlEmitter, apiModel: ApiModel): void {
     const packagesTable = table([ 'Package', 'Description' ]);
 
     for (const apiMember of apiModel.members) {
-      const row = tr([ this._createTitleCell(apiMember), this._createDescriptionCell(apiMember) ]);
+      const row = tr([ this._createTitleCell(apiMember), this._createDescriptionCell(apiMember, output.contextApiItem) ]);
 
       switch (apiMember.kind) {
         case ApiItemKind.Package:
@@ -367,7 +372,7 @@ export class HtmlDocumenter {
   /**
    * GENERATE PAGE: PACKAGE or NAMESPACE
    */
-  private _writePackageOrNamespaceTables(output: HtmlEmitter, apiContainer: ApiPackage | ApiNamespace): void {
+  private _writePackageOrNamespaceTables(output: CustomHtmlEmitter, apiContainer: ApiPackage | ApiNamespace): void {
     const classesTable = table([ 'Class', 'Description' ]);
     const enumerationsTable = table([ 'Enumeration', 'Description' ]);
     const functionsTable = table([ 'Function', 'Description' ]);
@@ -399,7 +404,7 @@ export class HtmlDocumenter {
 
       const row = tr([
         this._createTitleCell(apiMember),
-        this._createDescriptionCell(apiMember)
+        this._createDescriptionCell(apiMember, output.contextApiItem)
       ]);
 
       switch (apiMember.kind) {
@@ -487,7 +492,7 @@ export class HtmlDocumenter {
   /**
    * GENERATE PAGE: CLASS
    */
-  private _writeClassTables(output: HtmlEmitter, apiClass: ApiClass): void {
+  private _writeClassTables(output: CustomHtmlEmitter, apiClass: ApiClass): void {
     const eventsTable = table([ 'Property', 'Modifiers', 'Type', 'Description' ]);
     const constructorsTable = table([ 'Constructor', 'Modifiers', 'Description' ]);
     const propertiesTable = table([ 'Property', 'Modifiers', 'Type', 'Description' ]);
@@ -501,7 +506,7 @@ export class HtmlDocumenter {
             tr([
               this._createTitleCell(apiMember),
               this._createModifiersCell(apiMember),
-              this._createDescriptionCell(apiMember)
+              this._createDescriptionCell(apiMember, output.contextApiItem)
             ])
           );
 
@@ -513,7 +518,7 @@ export class HtmlDocumenter {
             tr([
               this._createTitleCell(apiMember),
               this._createModifiersCell(apiMember),
-              this._createDescriptionCell(apiMember)
+              this._createDescriptionCell(apiMember, output.contextApiItem)
             ])
           );
 
@@ -528,7 +533,7 @@ export class HtmlDocumenter {
                 this._createTitleCell(apiMember),
                 this._createModifiersCell(apiMember),
                 this._createPropertyTypeCell(apiMember),
-                this._createDescriptionCell(apiMember)
+                this._createDescriptionCell(apiMember, output.contextApiItem)
               ])
             );
           } else {
@@ -537,7 +542,7 @@ export class HtmlDocumenter {
                 this._createTitleCell(apiMember),
                 this._createModifiersCell(apiMember),
                 this._createPropertyTypeCell(apiMember),
-                this._createDescriptionCell(apiMember)
+                this._createDescriptionCell(apiMember, output.contextApiItem)
               ])
             );
           }
@@ -573,14 +578,14 @@ export class HtmlDocumenter {
   /**
    * GENERATE PAGE: ENUM
    */
-  private _writeEnumTables(output: HtmlEmitter, apiEnum: ApiEnum): void {
+  private _writeEnumTables(output: CustomHtmlEmitter, apiEnum: ApiEnum): void {
     const enumMembersTable = table([ 'Member', 'Value', 'Description' ]);
 
     for (const apiEnumMember of apiEnum.members) {
       enumMembersTable.content.push(tr([
         Utilities.getConciseSignature(apiEnumMember),
         apiEnumMember.initializerExcerpt.text,
-        this._createDescriptionCell(apiEnumMember)
+        this._createDescriptionCell(apiEnumMember, output.contextApiItem)
       ]));
     }
 
@@ -593,7 +598,7 @@ export class HtmlDocumenter {
   /**
    * GENERATE PAGE: INTERFACE
    */
-  private _writeInterfaceTables(output: HtmlEmitter, apiClass: ApiInterface): void {
+  private _writeInterfaceTables(output: CustomHtmlEmitter, apiClass: ApiInterface): void {
     const eventsTable = table([ 'Property', 'Type', 'Description' ]);
     const propertiesTable = table([ 'Property', 'Type', 'Description' ]);
     const methodsTable = table([ 'Method', 'Description' ]);
@@ -605,7 +610,7 @@ export class HtmlDocumenter {
         case ApiItemKind.MethodSignature: {
           methodsTable.content.push(tr([
             this._createTitleCell(apiMember),
-            this._createDescriptionCell(apiMember)
+            this._createDescriptionCell(apiMember, output.contextApiItem)
           ]));
 
           this._writeApiItemPage(apiMember);
@@ -617,13 +622,13 @@ export class HtmlDocumenter {
             eventsTable.content.push(tr([
               this._createTitleCell(apiMember),
               this._createPropertyTypeCell(apiMember),
-              this._createDescriptionCell(apiMember)
+              this._createDescriptionCell(apiMember, output.contextApiItem)
             ]));
           } else {
             propertiesTable.content.push(tr([
               this._createTitleCell(apiMember),
               this._createPropertyTypeCell(apiMember),
-              this._createDescriptionCell(apiMember)
+              this._createDescriptionCell(apiMember, output.contextApiItem)
             ]));
           }
 
@@ -653,13 +658,13 @@ export class HtmlDocumenter {
   /**
    * GENERATE PAGE: FUNCTION-LIKE
    */
-  private _writeParameterTables(output: HtmlEmitter, apiParameterListMixin: ApiParameterListMixin): void {
+  private _writeParameterTables(output: CustomHtmlEmitter, apiParameterListMixin: ApiParameterListMixin): void {
     const parametersTable = table([ 'Parameter', 'Type', 'Description' ]);
     let description: HtmlNode | string = '';
 
     for (const apiParameter of apiParameterListMixin.parameters) {
       if (apiParameter.tsdocParamBlock) {
-        description = this._createDocNodes(apiParameter.tsdocParamBlock.content.nodes)[0];
+        description = this._createDocNodes(apiParameter.tsdocParamBlock.content.nodes, output.contextApiItem)[0];
       }
       parametersTable.content.push(
           tr([
@@ -684,7 +689,7 @@ export class HtmlDocumenter {
 
           returnsTable.content.push(tr([
             returnTypeExcerpt.text.trim(),
-            this._createDocNodes(apiParameterListMixin.tsdocComment.returnsBlock.content.nodes)[0],
+            this._createDocNodes(apiParameterListMixin.tsdocComment.returnsBlock.content.nodes, output.contextApiItem)[0],
           ]));
 
           output.appendChild(tag('h3', 'section-heading', 'Returns'));
@@ -709,7 +714,7 @@ export class HtmlDocumenter {
    * We mostly assume that the input is an ApiDocumentedItem, but it's easier to perform this as a runtime
    * check than to have each caller perform a type cast.
    */
-  private _createDescriptionCell(apiItem: ApiItem): HtmlNode {
+  private _createDescriptionCell(apiItem: ApiItem, contextApiItem: ApiItem): HtmlNode {
 //    const section: DocSection = new DocSection({ configuration });
 /*
     if (ApiReleaseTagMixin.isBaseClassOf(apiItem)) {
@@ -726,7 +731,7 @@ export class HtmlDocumenter {
 
     if (apiItem instanceof ApiDocumentedItem) {
       if (apiItem.tsdocComment !== undefined) {
-        return tag('div', 'description', this._createDocNodes(apiItem.tsdocComment.summarySection.nodes));
+        return tag('div', 'description', this._createDocNodes(apiItem.tsdocComment.summarySection.nodes, contextApiItem));
       }
     }
 
@@ -784,18 +789,18 @@ export class HtmlDocumenter {
 */
   }
 
-  private _createDocNodes(nodes: readonly DocNode[]): HtmlNode[] {
+  private _createDocNodes(nodes: readonly DocNode[], contextApiItem: ApiItem): HtmlNode[] {
     const result = new HtmlEmitter();
 
     nodes.forEach(node => {
       switch (node.kind) {
         case DocNodeKind.Paragraph:
           const paragraph = node as DocParagraph;
-          result.appendChild(tag('p', this._createDocNodes(paragraph.nodes)));
+          result.appendChild(tag('p', this._createDocNodes(paragraph.nodes, contextApiItem)));
           break;
         case DocNodeKind.Block:
           const block = node as DocBlock;
-          result.appendChild(tag('div', this._createDocNodes(block.content.nodes)));
+          result.appendChild(tag('div', this._createDocNodes(block.content.nodes, contextApiItem)));
           break;
         case DocNodeKind.InlineTag:
           const blocktag = node as DocInlineTag;
@@ -819,9 +824,21 @@ export class HtmlDocumenter {
           const link = node as DocLinkTag;
           if (link.urlDestination) {
             result.appendChild(a(link.linkText || link.urlDestination, link.urlDestination));
-          } else {
-            console.warn('DocLinkTag with codeDestination not supported')
-            result.appendChild(a(link.linkText || 'Missing Link', 'missing-link'));
+          } else if (link.codeDestination) {
+            const lookup: IResolveDeclarationReferenceResult = this._apiModel.resolveDeclarationReference(
+              link.codeDestination,
+              contextApiItem,
+            );
+
+            if (lookup.resolvedApiItem) {
+              const filename = this._getLinkFilenameForApiItem(lookup.resolvedApiItem);
+              let linkText: string = link.linkText || lookup.resolvedApiItem.getScopedNameWithinPackage();
+              result.appendChild(a(linkText, filename));
+            } else if (lookup.errorMessage) {
+              console.log(
+                  `WARNING: Unable to resolve reference "${link.codeDestination.emitAsTsdoc()}": ${lookup.errorMessage}`
+              );
+            }
           }
           break;
         case DocNodeKind.PlainText:
