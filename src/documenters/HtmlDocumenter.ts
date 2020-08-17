@@ -39,7 +39,9 @@ import {
 //  ApiReturnTypeMixin,
   ApiDeclaredItem,
   ApiNamespace,
-  ExcerptTokenKind
+  ExcerptTokenKind,
+  Excerpt,
+  ApiReturnTypeMixin
 } from '@microsoft/api-extractor-model';
 
 import { Utilities } from '../utils/Utilities';
@@ -294,7 +296,7 @@ export class HtmlDocumenter {
       if (tsdocComment) {
         // Write the @remarks block
         if (tsdocComment.remarksBlock) {
-          output.appendChild(tag('div', 'remarks', 'Remarks'));
+          output.appendChild(tag('h3', 'section-heading', 'Remarks'));
           output.appendChild(tag('div', this._createDocNodes(tsdocComment.remarksBlock.content.nodes)));
         }
 
@@ -326,8 +328,8 @@ export class HtmlDocumenter {
         const throwsBlocks: DocBlock[] = tsdocComment.customBlocks.filter(x => x.blockTag.tagNameWithUpperCase
           === StandardTags.throws.tagNameWithUpperCase);
 
-        output.appendChild(tag('h3', 'section-heading', 'Exceptions'));
-        const exceptionsTable = table([ 'Exception' ]);
+        output.appendChild(tag('h3', 'section-heading', 'Throws'));
+        const exceptionsTable = table([ 'Error' ]);
               
         for (const throwsBlock of throwsBlocks) {
           const row = tr([ tag('span', this._createDocNodes(throwsBlock.content.nodes)) ]);
@@ -672,30 +674,24 @@ export class HtmlDocumenter {
       output.appendChild(tag('h3', 'section-heading', 'Parameters'));
       output.appendChild(parametersTable);
     }
-/*
+
     if (ApiReturnTypeMixin.isBaseClassOf(apiParameterListMixin)) {
-      const returnTypeExcerpt: Excerpt = apiParameterListMixin.returnTypeExcerpt;
-      output.appendChild(
-        new DocParagraph({ configuration }, [
-          new DocEmphasisSpan({ configuration, bold: true}, [
-            new DocPlainText({ configuration, text: 'Returns:' })
-          ])
-        ])
-      );
-
-      output.appendChild(
-        new DocParagraph({ configuration }, [
-          new DocCodeSpan({ configuration, code: returnTypeExcerpt.text.trim() || '(not declared)' })
-        ])
-      );
-
       if (apiParameterListMixin instanceof ApiDocumentedItem) {
         if (apiParameterListMixin.tsdocComment && apiParameterListMixin.tsdocComment.returnsBlock) {
-          this._appendSection(output, apiParameterListMixin.tsdocComment.returnsBlock.content);
+
+          const returnTypeExcerpt: Excerpt = apiParameterListMixin.returnTypeExcerpt;
+          const returnsTable = table(['Type', 'Description' ]);
+
+          returnsTable.content.push(tr([
+            returnTypeExcerpt.text.trim(),
+            this._createDocNodes(apiParameterListMixin.tsdocComment.returnsBlock.content.nodes)[0],
+          ]));
+
+          output.appendChild(tag('h3', 'section-heading', 'Returns'));
+          output.appendChild(returnsTable);
         }
       }
     }
-*/
   }
 
   private _createTitleCell(apiItem: ApiItem): HtmlNode {
